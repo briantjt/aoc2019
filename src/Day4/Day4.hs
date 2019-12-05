@@ -5,7 +5,6 @@ numbers :: [Int]
 numbers = [197487 .. 673251]
 
 splitDigits :: Int -> [Int]
-
 splitDigits i | i < 10    = [i]
               | otherwise = splitDigits (i `quot` 10) ++ [i `mod` 10]
 

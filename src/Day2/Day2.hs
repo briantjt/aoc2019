@@ -2,7 +2,6 @@ module Day2.Day2 where
 
 import           System.Directory
 import           Data.List.Split
-import           Data.Array.MArray
 import           Data.Array.IO
 
 day2Part1 :: IO Int
