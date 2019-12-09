@@ -25,6 +25,7 @@ dependencies:
     - split
     - array
     - containers
+    - async
 
 library:
     source-dirs: src
