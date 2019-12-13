@@ -22,7 +22,7 @@ parseInput = map (\x -> read x :: Integer) . splitOn ","
 splitInstruction :: Integer -> [Integer]
 splitInstruction i =
   let (modes, opCode) = i `quotRem` 100
-  in  [opCode] ++ reverse (splitDigits modes) ++ [0 ..]
+  in  [opCode] ++ reverse (splitDigits modes) ++ repeat 0
 
 opArgs :: [Integer]
 opArgs = [0, 3, 3, 1, 1, 2, 2, 3, 3, 1]
@@ -41,14 +41,14 @@ processOpCode ram intPointer memPointer inputChannel outputChannel = do
     then return ram
     else do
       let argsRequired = opArgs !! fromIntegral operation
-          args = map (\pos -> fromMaybe 0 $ M.lookup (intPointer + pos) ram)
+          args = map (\pos -> fromJust $ M.lookup (intPointer + pos) ram)
                      [1 .. argsRequired]
           argModes = zip args modes
       let readValues = map
             (\(arg, mode) -> case mode of
-              0 -> fromMaybe 0 (M.lookup arg ram)
-              1 -> arg
-              2 -> fromMaybe 0 (M.lookup (arg + memPointer) ram)
+              0 -> M.lookup arg ram
+              1 -> Just arg
+              2 -> M.lookup (arg + memPointer) ram
             )
             argModes
       let writeValues = map
@@ -60,14 +60,18 @@ processOpCode ram intPointer memPointer inputChannel outputChannel = do
             argModes
       case operation of
         1 -> processOpCode
-          (M.insert (writeValues !! 2) (head readValues + (readValues !! 1)) ram
+          (M.insert (writeValues !! 2)
+                    (sum $ take 2 (fromMaybe 0 <$> readValues))
+                    ram
           )
           (intPointer + 4)
           memPointer
           inputChannel
           outputChannel
         2 -> processOpCode
-          (M.insert (writeValues !! 2) (head readValues * (readValues !! 1)) ram
+          (M.insert (writeValues !! 2)
+                    (product $ take 2 (fromMaybe 0 <$> readValues))
+                    ram
           )
           (intPointer + 4)
           memPointer
@@ -81,7 +85,7 @@ processOpCode ram intPointer memPointer inputChannel outputChannel = do
                         inputChannel
                         outputChannel
         4 -> do
-          writeChan outputChannel (head readValues)
+          writeChan outputChannel (fromJust $ head readValues)
           processOpCode ram
                         (intPointer + 2)
                         memPointer
@@ -89,13 +93,19 @@ processOpCode ram intPointer memPointer inputChannel outputChannel = do
                         outputChannel
         5 -> processOpCode
           ram
-          (if head readValues /= 0 then readValues !! 1 else intPointer + 3)
+          (if (fromJust $ head readValues) /= 0
+            then (fromJust $ readValues !! 1)
+            else intPointer + 3
+          )
           memPointer
           inputChannel
           outputChannel
         6 -> processOpCode
           ram
-          (if head readValues == 0 then readValues !! 1 else intPointer + 3)
+          (if (fromJust $ head readValues) == 0
+            then (fromJust $ readValues !! 1)
+            else intPointer + 3
+          )
           memPointer
           inputChannel
           outputChannel
@@ -119,6 +129,8 @@ processOpCode ram intPointer memPointer inputChannel outputChannel = do
           outputChannel
         9 -> processOpCode ram
                            (intPointer + 2)
-                           (memPointer + head readValues)
+                           (memPointer + (fromJust $ head readValues))
                            inputChannel
                            outputChannel
+        _ -> print "ERROR" >> (print $ M.toList ram) >> return ram
+
